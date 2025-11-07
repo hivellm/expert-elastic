@@ -1,0 +1,12 @@
+{
+  "source": "Elasticsearch Official Documentation",
+  "base_url": "https://www.elastic.co/guide/en/elasticsearch/reference/current/",
+  "pages_scraped": 29,
+  "pages_failed": 0,
+  "total_examples": 119,
+  "task_distribution": {
+    "query_dsl": 86,
+    "mapping_create": 8,
+    "pipeline_create": 25
+  }
+}

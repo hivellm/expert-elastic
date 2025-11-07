@@ -1,0 +1,21 @@
+{
+  "total_raw_examples": 19270,
+  "processed_examples": 10023,
+  "sources": [
+    "all"
+  ],
+  "skipped": {
+    "missing_fields": 0,
+    "invalid_json": 0,
+    "duplicates": 9211,
+    "portuguese_filtered": 36,
+    "errors": 0
+  },
+  "tasks": {
+    "mapping_create": 370,
+    "query_dsl": 8539,
+    "kql": 253,
+    "eql": 759,
+    "pipeline_create": 102
+  }
+}

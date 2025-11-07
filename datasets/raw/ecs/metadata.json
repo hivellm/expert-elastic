@@ -1,0 +1,7 @@
+{
+  "source": "ECS (Elastic Common Schema)",
+  "version": "v9.2.0",
+  "total_examples": 152,
+  "schemas_processed": 20,
+  "url": "https://github.com/elastic/ecs"
+}

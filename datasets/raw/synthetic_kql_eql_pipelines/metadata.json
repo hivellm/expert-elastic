@@ -1,0 +1,7 @@
+{
+  "source": "Synthetic Generation",
+  "kql_examples": 750,
+  "eql_examples": 240,
+  "pipeline_examples": 1000,
+  "total_examples": 1990
+}

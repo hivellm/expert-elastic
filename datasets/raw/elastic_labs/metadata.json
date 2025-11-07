@@ -1,0 +1,5 @@
+{
+  "source": "Elastic Labs (Synthetic)",
+  "total_examples": 6000,
+  "note": "Template-based synthetic examples for NL\u2192DSL training"
+}

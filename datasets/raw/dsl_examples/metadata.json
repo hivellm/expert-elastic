@@ -1,0 +1,17 @@
+{
+  "source": "DSL Examples Generator (Synthetic)",
+  "total_examples": 9921,
+  "note": "Large-scale synthetic Query DSL examples covering all major query types",
+  "query_types": [
+    "term",
+    "match",
+    "range",
+    "bool",
+    "aggregations",
+    "multi_match",
+    "exists",
+    "prefix",
+    "wildcard",
+    "nested"
+  ]
+}

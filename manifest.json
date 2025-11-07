@@ -1,0 +1,253 @@
+{
+  "name": "expert-elastic",
+  "version": "0.1.0",
+  "schema_version": "2.0",
+  "description": "Elasticsearch expert for mappings, queries (DSL/KQL/EQL), analyzers, and ingest pipelines. Trained on official Elastic sources including ECS, integrations, Kibana samples, and detection rules.",
+  "author": "hivellm",
+  "homepage": "https://github.com/hivellm/expert-elastic",
+  
+  "base_models": [
+    {
+      "name": "F:/Node/hivellm/expert/models/Qwen3-0.6B",
+      "sha256": "",
+      "quantization": "int4",
+      "rope_scaling": {
+        "type": "ntk-by-parts",
+        "factor": 8.0,
+        "max_position_embeddings": 32768,
+        "original_max_position_embeddings": 8192,
+        "fine_grained": true,
+        "_comment": "Qwen3-specific NTK-by-parts scaling (β=0.25). Matches Rust implementation."
+      },
+      "prompt_template": "chatml",
+      "adapters": [
+        {
+          "type": "dora",
+          "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "up_proj", "down_proj"],
+          "r": 14,
+          "alpha": 28,
+          "scaling": "dora",
+          "dropout": 0.1,
+          "path": "weights/qwen3-06b/final",
+          "size_bytes": 0,
+          "sha256": "",
+          "_comment": "DoRA r=14 optimized for Elasticsearch queries and mappings. Trained on 60-80k examples from ECS, integrations, Kibana samples, and detection rules."
+        }
+      ]
+    }
+  ],
+  
+  "soft_prompts": [],
+  
+  "capabilities": [
+    "database:elasticsearch",
+    "database:elastic",
+    "query:dsl",
+    "query:kql",
+    "query:eql",
+    "task:mapping_create",
+    "task:pipeline_create",
+    "task:query_generation",
+    "feature:index_templates",
+    "feature:field_mappings",
+    "feature:analyzers",
+    "feature:aggregations",
+    "feature:query_dsl",
+    "feature:kql",
+    "feature:eql",
+    "feature:eql_sequences",
+    "feature:ingest_pipelines",
+    "feature:ecs_compliance",
+    "feature:security_detection",
+    "usecase:log_analytics",
+    "usecase:security",
+    "usecase:observability",
+    "usecase:search",
+    "language:en"
+  ],
+  
+  "limitations": [
+    "not_tested_production",
+    "no_real_world_benchmark",
+    "no_checkpoint_comparison"
+  ],
+  
+  "routing": {
+    "keywords": [
+      "elasticsearch",
+      "elastic",
+      "dsl",
+      "kql",
+      "eql",
+      "mapping",
+      "pipeline",
+      "ingest",
+      "kibana",
+      "ecs",
+      "index template",
+      "aggregation",
+      "query dsl"
+    ],
+    "router_hint": "database=elasticsearch OR query=dsl OR query=kql OR query=eql OR task=mapping OR task=pipeline",
+    "priority": 0.85
+  },
+  
+  "constraints": {
+    "max_chain": 10,
+    "load_order": 6,
+    "incompatible_with": [],
+    "requires": []
+  },
+  
+  "perf": {
+    "latency_ms_overhead": 3.5,
+    "vram_mb_overhead": 22,
+    "supported_batch_sizes": [1, 2, 4, 8],
+    "_comment": "DoRA r=14 needs 22MB VRAM. Grammar validation adds 1ms latency."
+  },
+  
+  "runtime": {
+    "candle_compatible": true,
+    "requires_kv_cache_persistence": true,
+    "attention_kernel": "flash-v2",
+    "_comment": "Metadata for Rust/Candle runtime. Qwen3 uses custom flash attention kernel (not standard SDPA)."
+  },
+  
+  "training": {
+    "dataset": {
+      "path": "datasets/train.jsonl",
+      "format": "jsonl",
+      "streaming": false,
+      "source": "ECS + Integrations + Kibana Samples + Detection Rules + Elastic Labs + Official Documentation + The Stack",
+      "preprocessing": {
+        "total_examples": 18408,
+        "processed_examples": 9181,
+        "duplicates_removed": 9105,
+        "portuguese_filtered": 122,
+        "validation": "json_syntax",
+        "format": "chatml",
+        "deduplication": "by_task_input",
+        "splits": {
+          "train": 9181,
+          "validation": 0,
+          "test": 0
+        },
+        "task_distribution": {
+          "mapping_create": 363,
+          "query_dsl": 8551,
+          "kql": 118,
+          "eql": 73,
+          "pipeline_create": 76
+        },
+        "by_source": {
+          "ecs": 147,
+          "integrations": 0,
+          "kibana_samples": 40,
+          "detection_rules": 224,
+          "elastic_labs": 6000,
+          "elasticsearch_examples": 67,
+          "synthetic_kql_eql_pipelines": 1990,
+          "dsl_examples": 9935
+        }
+      },
+      "_comment": "Combined from Elastic Common Schema (ECS), Package Registry integrations, Kibana sample data, detection rules (KQL/EQL), and Elastic Labs NL→DSL examples. Includes mappings, queries (DSL/KQL/EQL), analyzers, and ingest pipelines.",
+      "field_mapping": {
+        "text": "text"
+      }
+    },
+    "config": {
+      "method": "sft",
+      "adapter_type": "dora",
+      "use_unsloth": true,
+      "_unsloth_comment": "Enable Unsloth for 2x faster training and 70% less VRAM. Requires: pip install 'unsloth[windows] @ git+https://github.com/unslothai/unsloth.git'",
+      "rank": 14,
+      "alpha": 28,
+      "dropout": 0.1,
+      "target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "up_proj", "down_proj"],
+      "epochs": 2.0,
+      "_epochs_comment": "Increased to 2.0 epochs due to small dataset (904 examples vs 29k-99k in other experts). More epochs needed for convergence.",
+      "_comment": "DoRA r=14, LLaMA-Factory optimized params. Lower LR (5e-5) + higher dropout (0.1) for better generalization.",
+      "learning_rate": 5e-5,
+      "batch_size": 2,
+      "_batch_comment": "Reduced from 6 to 2 for Windows memory safety. Compensated with gradient_accumulation_steps=45 (effective batch=90).",
+      "gradient_accumulation_steps": 45,
+      "warmup_steps": 0,
+      "warmup_ratio": 0.1,
+      "_warmup_comment": "Using warmup_ratio=0.1 (10%, LLaMA-Factory best practice). warmup_steps=0 when using ratio.",
+      "lr_scheduler": "cosine",
+      "_scheduler_comment": "Simple cosine decay. More conservative to prevent pattern overfitting.",
+      "max_seq_length": 1024,
+      "_seq_length_comment": "P95 is 879 chars, max is 4828. 1024 covers 95% efficiently. Max examples are outliers (EQL sequences).",
+      "dataloader_num_workers": 0,
+      "dataloader_pin_memory": false,
+      "dataloader_prefetch_factor": 1,
+      "dataloader_persistent_workers": false,
+      "_dataloader_comment": "Windows fixes: num_workers=0, pin_memory=false, persistent_workers=false. Prevents worker memory copies and leaks.",
+      "fp16": false,
+      "bf16": true,
+      "use_tf32": true,
+      "use_sdpa": true,
+      "flash_attention_2": false,
+      "packing": true,
+      "memory_efficient_attention": true,
+      "memory_clear_every": 100,
+      "torch_compile": false,
+      "torch_compile_backend": "inductor",
+      "torch_compile_mode": "reduce-overhead",
+      "_compile_comment": "Windows fix: torch_compile=false (Triton incompatible with PyTorch 2.5.1 on Windows). Unsloth provides enough speedup.",
+      "optim": "adamw_bnb_8bit",
+      "group_by_length": false,
+      "logging_steps": 10,
+      "save_strategy": "steps",
+      "save_steps": 50,
+      "_save_steps_comment": "Reduced to 50 due to small dataset (904 examples). With effective batch 90, expect ~10 steps/epoch (~20 total). save_steps=250 would not trigger checkpoints.",
+      "save_total_limit": null,
+      "_checkpoint_strategy": "Keep all checkpoints for evolution analysis. With small dataset, checkpoints every 50 steps ensures we capture training progress.",
+      "evaluation_strategy": "steps",
+      "eval_steps": 50,
+      "_eval_steps_comment": "Reduced to 50 to match save_steps. With small dataset, more frequent evaluation helps track progress.",
+      "load_best_model_at_end": true,
+      "metric_for_best_model": "eval_loss",
+      "greater_is_better": false,
+      "gradient_checkpointing": true,
+      "activation_checkpointing": "attention_only",
+      "use_cuda_graphs": false,
+      "cuda_graph_warmup_steps": 100,
+      "_cuda_graphs_comment": "Windows fix: use_cuda_graphs=false (unstable on Windows). CUDA graphs require torch.compile which leaks memory."
+    },
+    "decoding": {
+      "use_grammar": true,
+      "grammar_type": "json",
+      "validation": "parser-strict",
+      "stop_sequences": ["\n\n"],
+      "temperature": 0.7,
+      "top_p": 0.8,
+      "top_k": 20,
+      "_comment": "Unsloth/Qwen recommended settings: temp=0.7, top_p=0.8, top_k=20. Prevents repetition collapse. Grammar validation prevents syntax errors."
+    },
+    "trained_on": "2025-11-06",
+    "base_model_version": "qwen3-0.6b"
+  },
+  
+  "license": "apache-2.0",
+  "tags": [
+    "elasticsearch",
+    "elastic",
+    "query-dsl",
+    "kql",
+    "eql",
+    "mapping",
+    "pipeline",
+    "ingest",
+    "ecs",
+    "kibana",
+    "security",
+    "observability",
+    "log-analytics",
+    "qwen3",
+    "dora",
+    "unsloth",
+    "windows"
+  ]
+}
+

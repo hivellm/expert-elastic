@@ -1,0 +1,10 @@
+{
+  "source": "Kibana Sample Data",
+  "datasets": [
+    "eCommerce",
+    "Flights",
+    "Web Logs"
+  ],
+  "total_examples": 40,
+  "note": "Synthetic examples based on Kibana sample data schemas"
+}

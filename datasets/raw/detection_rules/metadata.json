@@ -1,0 +1,7 @@
+{
+  "source": "Elastic Detection Rules",
+  "kql_examples": 221,
+  "eql_examples": 760,
+  "total_examples": 981,
+  "url": "https://github.com/elastic/detection-rules"
+}
