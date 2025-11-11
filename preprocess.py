@@ -30,10 +30,25 @@ Usage:
 import argparse
 import json
 import re
+import sys
+import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from collections import defaultdict
 import hashlib
+
+# Add experts root directory to path to import common utils
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
+
+# Import common preprocessing utilities for query-only sanitization
+try:
+    from common_preprocessing_utils import sanitize_chatml_response, extract_query_only
+except ImportError:
+    # Fallback if common utils not found
+    def sanitize_chatml_response(text: str, query_type: str = "auto") -> str:
+        return text.strip()
+    def extract_query_only(text: str, query_type: str = "auto") -> str:
+        return text.strip()
 
 # JSON validation
 try:
@@ -43,10 +58,79 @@ except ImportError:
     JSON_VALIDATION_AVAILABLE = False
 
 
-def validate_json(text: str) -> bool:
-    """Validate JSON syntax"""
+def is_sql_cypher_or_sparql(text: str) -> bool:
+    """Detect if text is SQL, Cypher, or SPARQL (not Elastic JSON/KQL/EQL)"""
     if not text or not text.strip():
         return False
+    
+    text_upper = text.upper().strip()
+    
+    # SQL keywords
+    sql_keywords = ['SELECT', 'FROM', 'INSERT INTO', 'UPDATE', 'DELETE FROM', 
+                    'CREATE TABLE', 'ALTER TABLE', 'DROP TABLE', 'JOIN', 'INNER JOIN',
+                    'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN', 'GROUP BY', 'HAVING']
+    
+    # Cypher keywords
+    cypher_keywords = ['MATCH', 'MERGE', 'RETURN', 'WITH', 'UNWIND', 'CALL', 'FOREACH']
+    
+    # SPARQL keywords
+    sparql_keywords = ['PREFIX', 'FILTER', 'OPTIONAL', 'GRAPH', 'ASK', 'CONSTRUCT', 'DESCRIBE']
+    
+    # Check if starts with SQL/Cypher/SPARQL keywords (strong indicator)
+    if text_upper.startswith(('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE TABLE', 
+                               'ALTER', 'DROP', 'MATCH', 'MERGE', 'RETURN', 'WITH', 
+                               'UNWIND', 'CALL', 'FOREACH', 'PREFIX', 'ASK', 'CONSTRUCT', 'DESCRIBE')):
+        return True
+    
+    # Check for SQL patterns
+    sql_patterns = [
+        r'\bFROM\s+\w+',  # FROM table
+        r'\bJOIN\s+\w+',  # JOIN table
+        r'\bGROUP\s+BY\b',  # GROUP BY
+        r'\bHAVING\s+',  # HAVING
+        r'\bINSERT\s+INTO\b',  # INSERT INTO
+        r'\bCREATE\s+TABLE\b',  # CREATE TABLE
+    ]
+    
+    for pattern in sql_patterns:
+        if re.search(pattern, text_upper):
+            return True
+    
+    # Check for Cypher patterns
+    cypher_patterns = [
+        r'\([^)]*:\w+\)',  # (n:Label)
+        r'-\[[^\]]*:\w+\]-',  # -[:RELATIONSHIP]->
+    ]
+    
+    for pattern in cypher_patterns:
+        if re.search(pattern, text_upper):
+            return True
+    
+    # Check for SPARQL patterns
+    sparql_patterns = [
+        r'\bPREFIX\s+\w+:',  # PREFIX prefix:
+        r'\{\s*\?',  # { ?variable
+        r'\?\w+\s+\?\w+',  # ?var1 ?var2
+    ]
+    
+    for pattern in sparql_patterns:
+        if re.search(pattern, text_upper):
+            return True
+    
+    return False
+
+def validate_json(text: str) -> bool:
+    """Validate JSON syntax
+    
+    CRITICAL: Rejects SQL/Cypher/SPARQL - only accepts JSON.
+    """
+    if not text or not text.strip():
+        return False
+    
+    # CRITICAL: Filter out SQL/Cypher/SPARQL
+    if is_sql_cypher_or_sparql(text):
+        return False
+    
     try:
         json_validator.loads(text)
         return True
@@ -54,16 +138,41 @@ def validate_json(text: str) -> bool:
         return False
 
 
+def generate_brief_reasoning(instruction: str, output: str, task: str) -> str:
+    """Generate a brief reasoning statement for Qwen3 compatibility.
+    
+    Qwen3 uses hybrid reasoning, so we include concise reasoning that leads to the query.
+    This helps the model understand when to use reasoning vs direct output.
+    """
+    # Detect what the query is doing based on task
+    if task == "query_dsl":
+        reasoning = f"I need to construct an Elasticsearch Query DSL query to search for the requested data."
+    elif task == "kql":
+        reasoning = f"I need to construct a KQL query to filter the requested events."
+    elif task == "eql":
+        reasoning = f"I need to construct an EQL query to detect the requested sequence of events."
+    elif task == "mapping_create":
+        reasoning = f"I need to create an Elasticsearch mapping with the specified fields and types."
+    elif task == "pipeline_create":
+        reasoning = f"I need to create an Elasticsearch ingest pipeline to process the data."
+    else:
+        reasoning = f"I need to construct an Elasticsearch query or configuration to fulfill the request."
+    
+    return reasoning
+
 def format_chatml(
     task: str,
     instruction: str,
     output: str,
     domain: str = "",
     index: str = "",
-    dialect: str = "elastic"
+    dialect: str = "elastic",
+    include_reasoning: bool = False
 ) -> str:
     """
     Format example with ChatML for Qwen3
+    
+    CRITICAL: Ensures response contains ONLY query (JSON/KQL/EQL), no explanatory text.
     
     Args:
         task: mapping_create, query_dsl, kql, eql, pipeline_create
@@ -78,10 +187,25 @@ def format_chatml(
     if index:
         system_content += f"\nIndex: {index}"
     
+    # CRITICAL: Sanitize output to ensure query-only (no reasoning/explanation)
+    output_clean = sanitize_chatml_response(output, query_type="elastic")
+    if not output_clean:
+        output_clean = extract_query_only(output, query_type="elastic")
+    
+    # For Qwen3 compatibility: optionally wrap in reasoning block
+    # Qwen3 uses hybrid reasoning: 75% reasoning + 25% direct (as per Qwen3 training notebook)
+    if include_reasoning:
+        # Generate a brief reasoning that leads to the Elastic query
+        reasoning = generate_brief_reasoning(instruction, output_clean, task)
+        assistant_content = f"<think>\n{reasoning}\n</think>\n{output_clean}"
+    else:
+        assistant_content = output_clean
+    
+    # Qwen3 format: <|im_start|>role\ncontent<|im_end|>
     return (
-        f"<|system|>\n{system_content}\n<|end|>\n"
-        f"<|user|>\n{instruction}\n<|end|>\n"
-        f"<|assistant|>\n{output}\n<|end|>"
+        f"<|im_start|>system\n{system_content}<|im_end|>\n"
+        f"<|im_start|>user\n{instruction}<|im_end|>\n"
+        f"<|im_start|>assistant\n{assistant_content}<|im_end|>\n"
     )
 
 
@@ -433,6 +557,11 @@ def process_dataset(
                 stats['portuguese_filtered'] = stats.get('portuguese_filtered', 0) + 1
                 continue
             
+            # CRITICAL: Filter out SQL/Cypher/SPARQL queries (not Elastic)
+            if is_sql_cypher_or_sparql(output):
+                stats['wrong_language_filtered'] = stats.get('wrong_language_filtered', 0) + 1
+                continue
+            
             # Validate JSON outputs (for mapping, query_dsl, pipeline tasks)
             if validate and task in ["mapping_create", "query_dsl", "pipeline_create"]:
                 if not validate_json(output):
@@ -448,7 +577,10 @@ def process_dataset(
                 seen_keys.add(dedup_key)
             
             # Format with ChatML
-            text = format_chatml(task, instruction, output, domain, index)
+            # Qwen3 uses hybrid reasoning: 75% reasoning + 25% direct (as per Qwen3 training notebook)
+            include_reasoning = (reasoning_counter % 4 != 0)  # 75% with reasoning (3 out of 4)
+            reasoning_counter += 1
+            text = format_chatml(task, instruction, output, domain, index, include_reasoning=include_reasoning)
             processed.append({"text": text})
             
             # Track stats by task
@@ -479,6 +611,7 @@ def process_dataset(
         "skipped": {
             "missing_fields": stats['missing_fields'],
             "invalid_json": stats['invalid_json'],
+            "wrong_language_filtered": stats.get('wrong_language_filtered', 0),
             "duplicates": stats['duplicates'],
             "portuguese_filtered": stats.get('portuguese_filtered', 0),
             "errors": stats['errors']
@@ -503,6 +636,7 @@ def process_dataset(
     print(f"Total raw examples:     {len(all_examples)}")
     print(f"Processed:              {stats['processed']}")
     print(f"Missing fields:         {stats['missing_fields']}")
+    print(f"SQL/Cypher/SPARQL filtered: {stats.get('wrong_language_filtered', 0)}")
     if validate:
         print(f"Invalid JSON:           {stats['invalid_json']}")
     if deduplicate:

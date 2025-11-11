@@ -28,7 +28,6 @@
           "alpha": 28,
           "scaling": "dora",
           "dropout": 0.1,
-          "path": "weights/qwen3-06b/final",
           "size_bytes": 0,
           "sha256": "",
           "_comment": "DoRA r=14 optimized for Elasticsearch queries and mappings. Trained on 60-80k examples from ECS, integrations, Kibana samples, and detection rules."
@@ -67,10 +66,37 @@
   ],
   
   "limitations": [
-    "not_tested_production",
-    "no_real_world_benchmark",
-    "no_checkpoint_comparison"
+    {
+      "pattern": "not_tested_production",
+      "description": "Expert has not been tested in production Elasticsearch environments",
+      "example": "Generated mappings or queries may not work correctly in production clusters",
+      "workaround": "Validate generated mappings/queries against Elasticsearch cluster before deployment"
+    },
+    {
+      "pattern": "no_real_world_benchmark",
+      "description": "No real-world benchmark has been performed to measure query performance",
+      "example": "Generated queries may be syntactically correct but not optimized for performance",
+      "workaround": "Use EXPLAIN API to analyze query performance and optimize as needed"
+    },
+    {
+      "pattern": "no_checkpoint_comparison",
+      "description": "No checkpoint comparison has been performed to identify best checkpoint",
+      "example": "Current checkpoint may not be optimal for all query types",
+      "workaround": "Test multiple checkpoints if available and select best for your use case"
+    }
   ],
+  
+  "quality_metrics": {
+    "benchmark_score": 0.0,
+    "base_model_score": 0.0,
+    "improvement_percent": 0.0,
+    "win_rate_vs_base": 0.0,
+    "test_queries": 0,
+    "checkpoint": "final",
+    "training_steps": 0,
+    "test_date": "2025-11-08",
+    "_comment": "Quality metrics pending - expert not yet fully evaluated. Dataset: 9,181 examples (9,081 after deduplication). Training configuration: DoRA r=14, 2.0 epochs."
+  },
   
   "routing": {
     "keywords": [
