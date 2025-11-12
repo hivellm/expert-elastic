@@ -1,8 +1,15 @@
 # Expert Elastic
 
-Elasticsearch expert for mappings, queries (DSL/KQL/EQL), analyzers, and ingest pipelines. Trained on official Elastic sources including ECS, integrations, Kibana samples, and detection rules.
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/hivellm/expert-elastic/releases/tag/v0.1.0)
+[![License](https://img.shields.io/badge/license-CC--BY--4.0-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-development-yellow.svg)](README.md#quick-start)
 
-**Version:** 0.1.0 | **Checkpoint:** TBD | **Quality Score:** TBD | **Dataset:** Multi-source (9,181 examples + The Stack, English only)
+[![Base Model](https://img.shields.io/badge/base%20model-Qwen3--0.6B-orange.svg)](README.md#features)
+[![Adapter](https://img.shields.io/badge/adapter-DoRA%20r%3D14-blue.svg)](README.md#training--configuration)
+[![Dataset](https://img.shields.io/badge/dataset-9k%2B%20examples-brightgreen.svg)](README.md#dataset)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20CUDA-0078d4.svg)](README.md#features)
+
+Elasticsearch expert for mappings, queries (DSL/KQL/EQL), analyzers, and ingest pipelines. Trained on official Elastic sources including ECS, integrations, Kibana samples, and detection rules.
 
 ## Quick Start
 
